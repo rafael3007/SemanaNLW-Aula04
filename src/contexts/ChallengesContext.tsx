@@ -1,12 +1,16 @@
 import { createContext, useState, ReactNode, useEffect } from "react";
+import Cookies from "js-cookie";
 import challenges from "../../challenges.json";
-import { CompletedChallenges } from "../components/CompletedChallenges";
+import { LevelUpModal } from "../components/LevelUpModal";
+
 
 interface Challenge {
     type: "body" | "aye";
     description: string;
     amount: number;
 }
+
+
 
 interface ChallengesContextData {
     level: number;
@@ -18,21 +22,32 @@ interface ChallengesContextData {
     startNewChallenge: () => void;
     resetChallenge: () => void;
     CompletChallenge: () => void;
+    closeLevelUpModal: () => void;
     
 }
 
 interface ChallengesProviderProps {
     children: ReactNode;
+    level: number;
+    currententExperience: number;
+    challengesCompleted: number;
 }
+
 
 export const ChallengesContext = createContext({} as ChallengesContextData);
 
-export function ChallengesProvider({ children }: ChallengesProviderProps) {
-    const [level, setLevel] = useState(1);
-    const [currentExperience, setCurrentExperience] = useState(0);
-    const [challengesCompleted, setChallengesCompleted] = useState(0);
+
+
+export function ChallengesProvider({ 
+    children, 
+    ...rest
+}: ChallengesProviderProps) {
+    const [level, setLevel] = useState(rest.level ?? 1);
+    const [currentExperience, setCurrentExperience] = useState(rest.currententExperience ?? 0);
+    const [challengesCompleted, setChallengesCompleted] = useState(rest.challengesCompleted ?? 0);
 
     const[activeChallenge,setActiveChallenge] = useState(null);
+    const [isLevelUpModalOpens,setIsLevelUpModalOpen] = useState(false);
 
     const experienceToNextLevel = Math.pow((level + 1) * 4 , 2 )
 
@@ -40,8 +55,20 @@ export function ChallengesProvider({ children }: ChallengesProviderProps) {
         Notification.requestPermission();
     }, [] )
 
+    useEffect(()=> {
+        Cookies.set('level', String(level));
+        Cookies.set('currentExperience', String(currentExperience));
+        Cookies.set('challengesCompleted', String(challengesCompleted));
+    }, [level, currentExperience, challengesCompleted] );
+
     function levelUp() {
         setLevel(level + 1);
+        setIsLevelUpModalOpen(true);
+
+    }
+
+    function closeLevelUpModal(){
+        setIsLevelUpModalOpen(false);
     }
 
     function startNewChallenge() {
@@ -53,7 +80,7 @@ export function ChallengesProvider({ children }: ChallengesProviderProps) {
         new Audio("/notification.mp3").play();
 
         if( Notification.permission === "granted" ) {
-            new Notification("Novo Desafio ", {
+            new Notification("Novo Desafio ",{
                 body: `Valendo ${challenge.amount}xp`
             }) 
         }
@@ -95,9 +122,13 @@ export function ChallengesProvider({ children }: ChallengesProviderProps) {
                 resetChallenge,
                 experienceToNextLevel,
                 CompletChallenge,
+                closeLevelUpModal,
             }}
         >
             { children}
+
+            {isLevelUpModalOpens && <LevelUpModal /> }
+
         </ChallengesContext.Provider>
     )
 }
